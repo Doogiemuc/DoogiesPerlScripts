@@ -20,10 +20,10 @@ my $mp3dir="/home/doogie/youtube_vids";
 my $url_file="/home/doogie/youtube-urls.txt";
 
 my $youtubedl="youtube-dl --format bestaudio --add-metadata --restrict-filenames --extract-audio -k --audio-format mp3 ".
-              "--ignore-errors --no-progress --batch-file $url_file --output '$mp3dir/%(title)s-%(id)s.%(ext)s'";
+              "--ignore-errors --no-progress --no-post-overwrites --batch-file $url_file --output '$mp3dir/%(title)s-%(id)s.%(ext)s'";
 
 print "\n";
-print "[worker] ----------------- downloading MP3s\n";
+print "[worker] ----------------- checking already downloaded tracks\n";
 print "\n";
 
 # collect a list of already downloaded youtube IDs
@@ -31,8 +31,8 @@ my @mp3s = <$mp3dir/*.mp3>;
 my %ids  = ();   # hash of ids
 
 foreach $file (@mp3s) { 
-  if ($file =~ /.*-([a-zA-Z0-9_]{11}).mp3/) {
-    print "[worker] already downloaded id=$1: $file\n";  
+  if ($file =~ /.*-([a-zA-Z0-9_-]{11}).mp3/) {
+    print "[worker] existing mp3 file with youtube-id=$1: $file\n";  
     $ids{$1} = 1;
   }
 }
@@ -43,21 +43,27 @@ my @lines = <$infile>;
 close $infile;
 
 open my $outfile, '>', $url_file or die "Can't write to $url_file: $!";
+my $num = 0;
 for (@lines) {
-    if ($_ =~ /^https?:\/\/(www\.)?youtube\.(de|com)\/watch\?v=([a-zA-Z0-9_]{11})/) {
+    if ($_ =~ /^https?:\/\/(www\.)?youtube\.(de|com)\/watch\?v=([a-zA-Z0-9_-]{11})/) {
         #print "found valid youtube url with id = $3\n";
         if (exists($ids{$3})) {
-            print "[worker] Sucessfully downloaded $_\n";
+            print "[worker] Already downloaded $_\n";
             next;      # do not output line again if mp3 with this id was already downloaded
-        }   
+        }
+        $num++;
     }
     print $outfile $_ ;
 }
 close $outfile;
 
 print "\n";
+print "[worker] ----------------- downloading $num new tracks\n";
+print "\n";
+
+print "\n";
 print "$youtubedl\n";
-#system($youtubedl);
+system($youtubedl);
 
 if ( $? == -1 ) { die "[worker] ERROR: youtube-dl failed: $!\n"; }
 
